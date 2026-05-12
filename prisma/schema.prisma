@@ -1,0 +1,452 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model acciones_admin {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  admin_id    String   @db.Uuid
+  tipo_accion String   @db.VarChar(60)
+  entidad     String   @db.VarChar(40)
+  entidad_id  String   @db.Uuid
+  descripcion String?
+  created_at  DateTime @default(now()) @db.Timestamptz(6)
+  users       users    @relation(fields: [admin_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model alertas {
+  id          String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tipo        tipo_alerta
+  descripcion String
+  entidad     String?     @db.VarChar(40)
+  entidad_id  String?     @db.Uuid
+  resuelta    Boolean     @default(false)
+  fecha       DateTime    @default(now()) @db.Timestamptz(6)
+}
+
+model asignaciones {
+  id         String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  turno_id   String          @db.Uuid
+  admin_id   String          @db.Uuid
+  tipo       tipo_asignacion @default(manual)
+  created_at DateTime        @default(now()) @db.Timestamptz(6)
+  users      users           @relation(fields: [admin_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  turnos     turnos          @relation(fields: [turno_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model bloqueos {
+  id           String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  cliente_id   String?     @db.Uuid
+  mensajero_id String?     @db.Uuid
+  motivo       String
+  fecha_inicio DateTime    @default(dbgenerated("CURRENT_DATE")) @db.Date
+  fecha_fin    DateTime?   @db.Date
+  activo       Boolean     @default(true)
+  creado_por   String      @db.Uuid
+  created_at   DateTime    @default(now()) @db.Timestamptz(6)
+  clientes     clientes?   @relation(fields: [cliente_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users        users       @relation(fields: [creado_por], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  mensajeros   mensajeros? @relation(fields: [mensajero_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([activo, fecha_fin], map: "idx_bloqueos_activos")
+}
+
+model bonos {
+  id           String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  mensajero_id String     @db.Uuid
+  monto        Decimal    @db.Decimal(10, 2)
+  motivo       String
+  fecha        DateTime   @default(dbgenerated("CURRENT_DATE")) @db.Date
+  aprobado_por String?    @db.Uuid
+  created_at   DateTime   @default(now()) @db.Timestamptz(6)
+  users        users?     @relation(fields: [aprobado_por], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  mensajeros   mensajeros @relation(fields: [mensajero_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model calificaciones {
+  id           String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  turno_id     String     @unique(map: "una_calificacion_por_turno") @db.Uuid
+  cliente_id   String     @db.Uuid
+  mensajero_id String     @db.Uuid
+  puntualidad  Int        @db.SmallInt
+  presentacion Int        @db.SmallInt
+  actitud      Int        @db.SmallInt
+  vehiculo     Int        @db.SmallInt
+  comentario   String?
+  created_at   DateTime   @default(now()) @db.Timestamptz(6)
+  clientes     clientes   @relation(fields: [cliente_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  mensajeros   mensajeros @relation(fields: [mensajero_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  turnos       turnos     @relation(fields: [turno_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([mensajero_id], map: "idx_calificaciones_mens")
+}
+
+model clientes {
+  id                 String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id            String           @db.Uuid
+  nombre_empresa     String           @db.VarChar(150)
+  tipo_empresa       tipo_empresa     @default(comercio)
+  estado             estado_cliente   @default(activo)
+  saldo_pendiente    Decimal          @default(0) @db.Decimal(12, 2)
+  metodo_pago        metodo_pago      @default(semanal)
+  autorizado_mensual Boolean          @default(false)
+  created_at         DateTime         @default(now()) @db.Timestamptz(6)
+  bloqueos           bloqueos[]
+  calificaciones     calificaciones[]
+  users              users            @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  solicitudes        solicitudes[]
+}
+
+model config_operativa {
+  id                    String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  fecha                 DateTime @unique @db.Date
+  minimo_mensajeros     Int      @default(1)
+  radio_geocerca_metros Int      @default(200)
+  horas_max_turno       Decimal  @default(12) @db.Decimal(4, 1)
+  alerta_demanda_umbral Int      @default(5)
+  updated_by            String?  @db.Uuid
+  updated_at            DateTime @default(now()) @db.Timestamptz(6)
+  users                 users?   @relation(fields: [updated_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model descansos {
+  id           String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  mensajero_id String          @db.Uuid
+  fecha        DateTime        @db.Date
+  tipo         String          @default("programado") @db.VarChar(20)
+  estado       estado_descanso @default(pendiente)
+  aprobado_por String?         @db.Uuid
+  created_at   DateTime        @default(now()) @db.Timestamptz(6)
+  users        users?          @relation(fields: [aprobado_por], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  mensajeros   mensajeros      @relation(fields: [mensajero_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([mensajero_id, fecha], map: "un_descanso_por_dia")
+  @@index([mensajero_id, fecha], map: "idx_descansos_mensajero")
+}
+
+model documentos {
+  id                      String                    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  mensajero_id            String                    @db.Uuid
+  tipo                    tipo_doc
+  archivo_url             String
+  fecha_vencimiento       DateTime?                 @db.Date
+  estado                  estado_doc                @default(pendiente)
+  validado_por_admin      Boolean                   @default(false)
+  created_at              DateTime                  @default(now()) @db.Timestamptz(6)
+  mensajeros              mensajeros                @relation(fields: [mensajero_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  validaciones_documentos validaciones_documentos[]
+
+  @@index([mensajero_id, estado], map: "idx_documentos_mensajero")
+}
+
+model incidentes {
+  id                 String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  turno_id           String          @db.Uuid
+  mensajero_id       String          @db.Uuid
+  tipo               tipo_incidente
+  descripcion        String
+  nivel              nivel_incidente @default(leve)
+  accion_tomada      String?
+  hay_lesionados     Boolean         @default(false)
+  reportado_a_seguro Boolean         @default(false)
+  created_at         DateTime        @default(now()) @db.Timestamptz(6)
+  mensajeros         mensajeros      @relation(fields: [mensajero_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  turnos             turnos          @relation(fields: [turno_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([mensajero_id], map: "idx_incidentes_mensajero")
+}
+
+model mensajeros {
+  id                       String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id                  String              @db.Uuid
+  estado                   estado_mensajero    @default(pendiente)
+  dia_descanso             String?             @db.VarChar(10)
+  horas_semanales_objetivo Decimal             @default(48) @db.Decimal(5, 2)
+  dias_compensatorios      Int                 @default(0)
+  created_at               DateTime            @default(now()) @db.Timestamptz(6)
+  bloqueos                 bloqueos[]
+  bonos                    bonos[]
+  calificaciones           calificaciones[]
+  descansos                descansos[]
+  documentos               documentos[]
+  incidentes               incidentes[]
+  users                    users               @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  metricas_mensajero       metricas_mensajero?
+  puntos_mensajero         puntos_mensajero[]
+  turnos                   turnos[]
+  ubicaciones              ubicaciones[]
+  vehiculos                vehiculos[]
+}
+
+model metricas_mensajero {
+  id                          String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  mensajero_id                String     @unique(map: "un_metrica_por_mensajero") @db.Uuid
+  tasa_cumplimiento           Decimal    @default(0) @db.Decimal(5, 2)
+  tiempo_promedio_entrega_min Decimal?   @db.Decimal(6, 2)
+  score                       Decimal    @default(0) @db.Decimal(3, 2)
+  total_turnos                Int        @default(0)
+  horas_acumuladas_semana     Decimal    @default(0) @db.Decimal(6, 2)
+  semana_inicio               DateTime?  @db.Date
+  updated_at                  DateTime   @default(now()) @db.Timestamptz(6)
+  mensajeros                  mensajeros @relation(fields: [mensajero_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model notificaciones {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id    String   @db.Uuid
+  tipo       String   @db.VarChar(50)
+  titulo     String   @db.VarChar(120)
+  mensaje    String
+  leido      Boolean  @default(false)
+  entidad    String?  @db.VarChar(40)
+  entidad_id String?  @db.Uuid
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+  users      users    @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([user_id, leido, created_at(sort: Desc)], map: "idx_notificaciones_user_leido")
+}
+
+model puntos_mensajero {
+  id           String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  mensajero_id String     @db.Uuid
+  puntos       Int        @default(0)
+  tipo         tipo_punto
+  origen_id    String?    @db.Uuid
+  fecha        DateTime   @default(dbgenerated("CURRENT_DATE")) @db.Date
+  created_at   DateTime   @default(now()) @db.Timestamptz(6)
+  mensajeros   mensajeros @relation(fields: [mensajero_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model solicitudes {
+  id                    String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  cliente_id            String           @db.Uuid
+  tarifa_id             String?          @db.Uuid
+  fecha                 DateTime         @db.Date
+  hora_inicio           DateTime         @db.Time(6)
+  hora_fin              DateTime         @db.Time(6)
+  total_horas           Decimal          @db.Decimal(5, 2)
+  tipo_dia              tipo_dia         @default(normal)
+  requiere_alimentacion Boolean          @default(false)
+  costo_total           Decimal          @default(0) @db.Decimal(12, 2)
+  estado                estado_solicitud @default(pendiente)
+  created_at            DateTime         @default(now()) @db.Timestamptz(6)
+  clientes              clientes         @relation(fields: [cliente_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  tarifas               tarifas?         @relation(fields: [tarifa_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  turnos                turnos[]
+
+  @@index([cliente_id, fecha], map: "idx_solicitudes_cliente")
+}
+
+model tarifas {
+  id                 String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tipo_dia           tipo_dia
+  tarifa_hora        Decimal       @db.Decimal(10, 2)
+  costo_alimentacion Decimal       @default(0) @db.Decimal(10, 2)
+  vigente_desde      DateTime      @db.Date
+  vigente_hasta      DateTime?     @db.Date
+  activa             Boolean       @default(true)
+  created_by         String?       @db.Uuid
+  created_at         DateTime      @default(now()) @db.Timestamptz(6)
+  solicitudes        solicitudes[]
+  users              users?        @relation(fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([tipo_dia, vigente_desde], map: "no_solapamiento_tarifas")
+}
+
+model turnos {
+  id                 String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  solicitud_id       String          @db.Uuid
+  mensajero_id       String          @db.Uuid
+  estado             estado_turno    @default(pendiente)
+  hora_checkin       DateTime?       @db.Timestamptz(6)
+  checkin_lat        Decimal?        @db.Decimal(9, 6)
+  checkin_lon        Decimal?        @db.Decimal(9, 6)
+  hora_checkout      DateTime?       @db.Timestamptz(6)
+  checkout_lat       Decimal?        @db.Decimal(9, 6)
+  checkout_lon       Decimal?        @db.Decimal(9, 6)
+  pago_mensajero     Decimal?        @db.Decimal(12, 2)
+  reemplaza_turno_id String?         @db.Uuid
+  created_at         DateTime        @default(now()) @db.Timestamptz(6)
+  asignaciones       asignaciones[]
+  calificaciones     calificaciones?
+  incidentes         incidentes[]
+  mensajeros         mensajeros      @relation(fields: [mensajero_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  turnos             turnos?         @relation("turnosToturnos", fields: [reemplaza_turno_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  other_turnos       turnos[]        @relation("turnosToturnos")
+  solicitudes        solicitudes     @relation(fields: [solicitud_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([estado], map: "idx_turnos_estado")
+  @@index([mensajero_id], map: "idx_turnos_mensajero")
+  @@index([solicitud_id], map: "idx_turnos_solicitud")
+}
+
+model ubicaciones {
+  id           BigInt     @id @default(autoincrement())
+  mensajero_id String     @db.Uuid
+  latitud      Decimal    @db.Decimal(9, 6)
+  longitud     Decimal    @db.Decimal(9, 6)
+  timestamp    DateTime   @default(now()) @db.Timestamptz(6)
+  mensajeros   mensajeros @relation(fields: [mensajero_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([mensajero_id, timestamp(sort: Desc)], map: "idx_ubicaciones_mensajero_ts")
+}
+
+model users {
+  id                      String                    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name                    String                    @db.VarChar(120)
+  email                   String                    @unique @db.VarChar(120)
+  password                String
+  role                    rol_usuario
+  estado                  estado_usuario            @default(activo)
+  created_at              DateTime                  @default(now()) @db.Timestamptz(6)
+  acciones_admin          acciones_admin[]
+  asignaciones            asignaciones[]
+  bloqueos                bloqueos[]
+  bonos                   bonos[]
+  clientes                clientes[]
+  config_operativa        config_operativa[]
+  descansos               descansos[]
+  mensajeros              mensajeros[]
+  notificaciones          notificaciones[]
+  tarifas                 tarifas[]
+  validaciones_documentos validaciones_documentos[]
+}
+
+model validaciones_documentos {
+  id           String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  documento_id String     @db.Uuid
+  admin_id     String     @db.Uuid
+  estado       estado_doc
+  comentario   String?
+  created_at   DateTime   @default(now()) @db.Timestamptz(6)
+  users        users      @relation(fields: [admin_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  documentos   documentos @relation(fields: [documento_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model vehiculos {
+  id           String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  mensajero_id String     @db.Uuid
+  placa        String     @unique @db.VarChar(20)
+  tipo         String     @default("moto") @db.VarChar(20)
+  estado       String     @default("activo") @db.VarChar(20)
+  created_at   DateTime   @default(now()) @db.Timestamptz(6)
+  mensajeros   mensajeros @relation(fields: [mensajero_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+enum estado_cliente {
+  activo
+  bloqueado
+}
+
+enum estado_descanso {
+  pendiente
+  aprobado
+  rechazado
+}
+
+enum estado_doc {
+  pendiente
+  aprobado
+  rechazado
+  vencido
+}
+
+enum estado_mensajero {
+  pendiente
+  activo
+  suspendido
+}
+
+enum estado_solicitud {
+  pendiente
+  confirmada
+  asignada
+  cancelada
+}
+
+enum estado_turno {
+  pendiente
+  confirmado
+  en_proceso
+  completado
+  no_show
+}
+
+enum estado_usuario {
+  activo
+  bloqueado
+}
+
+enum metodo_pago {
+  semanal
+  mensual
+}
+
+enum nivel_incidente {
+  leve
+  grave
+}
+
+enum rol_usuario {
+  admin
+  cliente
+  mensajero
+}
+
+enum tipo_alerta {
+  demanda
+  incidente
+  vencimiento_doc
+  otro
+}
+
+enum tipo_asignacion {
+  manual
+  automatico
+}
+
+enum tipo_bloqueo_ent {
+  cliente
+  mensajero
+}
+
+enum tipo_dia {
+  normal
+  domingo
+  festivo
+}
+
+enum tipo_doc {
+  soat
+  tecnomecanica
+  licencia
+  cedula
+}
+
+enum tipo_empresa {
+  restaurante
+  comercio
+  farmacia
+  otro
+}
+
+enum tipo_incidente {
+  inasistencia
+  retraso
+  comportamiento
+  accidente
+}
+
+enum tipo_punto {
+  presentacion
+  puntualidad
+  actitud
+  vehiculo
+  cumplimiento
+}
