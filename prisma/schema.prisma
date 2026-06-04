@@ -450,3 +450,8 @@ enum tipo_punto {
   vehiculo
   cumplimiento
 }
+
+enum tipo_cliente {
+  empresa 
+  persona
+}
