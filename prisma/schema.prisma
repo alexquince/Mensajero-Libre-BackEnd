@@ -89,18 +89,22 @@ model calificaciones {
 
 model clientes {
   id                 String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  user_id            String           @db.Uuid
+  user_id            String           @unique @db.Uuid
   nombre_empresa     String           @db.VarChar(150)
   tipo_empresa       tipo_empresa     @default(comercio)
+  tipo_cliente       tipo_cliente     @default(empresa)
   estado             estado_cliente   @default(activo)
-  saldo_pendiente    Decimal          @default(0) @db.Decimal(12, 2)
+  saldo_pendiente    Decimal          @default(0) @db.Decimal(12,2)
   metodo_pago        metodo_pago      @default(semanal)
   autorizado_mensual Boolean          @default(false)
   created_at         DateTime         @default(now()) @db.Timestamptz(6)
+  updated_at         DateTime         @updatedAt @db.Timestamptz(6)
+  users              users            @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  solicitudes        solicitudes[]
   bloqueos           bloqueos[]
   calificaciones     calificaciones[]
-  users              users            @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  solicitudes        solicitudes[]
+
+  @@index([estado])
 }
 
 model config_operativa {
@@ -111,7 +115,7 @@ model config_operativa {
   horas_max_turno       Decimal  @default(12) @db.Decimal(4, 1)
   alerta_demanda_umbral Int      @default(5)
   updated_by            String?  @db.Uuid
-  updated_at            DateTime @default(now()) @db.Timestamptz(6)
+  updated_at            DateTime @updatedAt @db.Timestamptz(6)
   users                 users?   @relation(fields: [updated_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
 }
 
@@ -134,15 +138,18 @@ model documentos {
   id                      String                    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   mensajero_id            String                    @db.Uuid
   tipo                    tipo_doc
+  numero_documento        String?
   archivo_url             String
   fecha_vencimiento       DateTime?                 @db.Date
   estado                  estado_doc                @default(pendiente)
   validado_por_admin      Boolean                   @default(false)
   created_at              DateTime                  @default(now()) @db.Timestamptz(6)
-  mensajeros              mensajeros                @relation(fields: [mensajero_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  updated_at              DateTime                  @updatedAt @db.Timestamptz(6)
+  mensajeros              mensajeros                @relation(fields: [mensajero_id], references: [id], onDelete: Cascade)
   validaciones_documentos validaciones_documentos[]
 
-  @@index([mensajero_id, estado], map: "idx_documentos_mensajero")
+  @@index([mensajero_id])
+  @@index([estado])
 }
 
 model incidentes {
@@ -164,24 +171,27 @@ model incidentes {
 
 model mensajeros {
   id                       String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  user_id                  String              @db.Uuid
+  user_id                  String              @unique @db.Uuid
   estado                   estado_mensajero    @default(pendiente)
-  dia_descanso             String?             @db.VarChar(10)
-  horas_semanales_objetivo Decimal             @default(48) @db.Decimal(5, 2)
+  dia_descanso             dia_semana?
+  horas_semanales_objetivo Decimal             @default(48) @db.Decimal(5,2)
   dias_compensatorios      Int                 @default(0)
   created_at               DateTime            @default(now()) @db.Timestamptz(6)
+  updated_at               DateTime            @updatedAt @db.Timestamptz(6)
+  users                    users               @relation(fields: [user_id], references: [id], onDelete: Cascade)
   bloqueos                 bloqueos[]
   bonos                    bonos[]
   calificaciones           calificaciones[]
   descansos                descansos[]
   documentos               documentos[]
   incidentes               incidentes[]
-  users                    users               @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   metricas_mensajero       metricas_mensajero?
   puntos_mensajero         puntos_mensajero[]
   turnos                   turnos[]
   ubicaciones              ubicaciones[]
   vehiculos                vehiculos[]
+
+  @@index([estado])
 }
 
 model metricas_mensajero {
@@ -193,23 +203,26 @@ model metricas_mensajero {
   total_turnos                Int        @default(0)
   horas_acumuladas_semana     Decimal    @default(0) @db.Decimal(6, 2)
   semana_inicio               DateTime?  @db.Date
-  updated_at                  DateTime   @default(now()) @db.Timestamptz(6)
+  updated_at                  DateTime   @updatedAt
   mensajeros                  mensajeros @relation(fields: [mensajero_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 }
 
 model notificaciones {
   id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   user_id    String   @db.Uuid
-  tipo       String   @db.VarChar(50)
+  tipo       tipo_notificacion  
   titulo     String   @db.VarChar(120)
   mensaje    String
+  enviada    Boolean  @default(false)
   leido      Boolean  @default(false)
   entidad    String?  @db.VarChar(40)
   entidad_id String?  @db.Uuid
   created_at DateTime @default(now()) @db.Timestamptz(6)
-  users      users    @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  updated_at DateTime @updatedAt @db.Timestamptz(6)
+  users       users   @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
-  @@index([user_id, leido, created_at(sort: Desc)], map: "idx_notificaciones_user_leido")
+  @@index([user_id, leido])
+  @@index([created_at])
 }
 
 model puntos_mensajero {
@@ -228,6 +241,9 @@ model solicitudes {
   cliente_id            String           @db.Uuid
   tarifa_id             String?          @db.Uuid
   fecha                 DateTime         @db.Date
+  direccion             String
+  latitud               Decimal?
+  longitud              Decimal?
   hora_inicio           DateTime         @db.Time(6)
   hora_fin              DateTime         @db.Time(6)
   total_horas           Decimal          @db.Decimal(5, 2)
@@ -236,11 +252,13 @@ model solicitudes {
   costo_total           Decimal          @default(0) @db.Decimal(12, 2)
   estado                estado_solicitud @default(pendiente)
   created_at            DateTime         @default(now()) @db.Timestamptz(6)
+  updated_at            DateTime         @updatedAt
   clientes              clientes         @relation(fields: [cliente_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   tarifas               tarifas?         @relation(fields: [tarifa_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   turnos                turnos[]
 
   @@index([cliente_id, fecha], map: "idx_solicitudes_cliente")
+  @@index([created_at])
 }
 
 model tarifas {
@@ -253,6 +271,7 @@ model tarifas {
   activa             Boolean       @default(true)
   created_by         String?       @db.Uuid
   created_at         DateTime      @default(now()) @db.Timestamptz(6)
+  updated_at         DateTime      @updatedAt
   solicitudes        solicitudes[]
   users              users?        @relation(fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
@@ -264,6 +283,7 @@ model turnos {
   solicitud_id       String          @db.Uuid
   mensajero_id       String          @db.Uuid
   estado             estado_turno    @default(pendiente)
+  observaciones      String?
   hora_checkin       DateTime?       @db.Timestamptz(6)
   checkin_lat        Decimal?        @db.Decimal(9, 6)
   checkin_lon        Decimal?        @db.Decimal(9, 6)
@@ -273,6 +293,7 @@ model turnos {
   pago_mensajero     Decimal?        @db.Decimal(12, 2)
   reemplaza_turno_id String?         @db.Uuid
   created_at         DateTime        @default(now()) @db.Timestamptz(6)
+  updated_at         DateTime        @updatedAt
   asignaciones       asignaciones[]
   calificaciones     calificaciones?
   incidentes         incidentes[]
@@ -284,6 +305,7 @@ model turnos {
   @@index([estado], map: "idx_turnos_estado")
   @@index([mensajero_id], map: "idx_turnos_mensajero")
   @@index([solicitud_id], map: "idx_turnos_solicitud")
+  @@index([created_at])
 }
 
 model ubicaciones {
@@ -294,6 +316,7 @@ model ubicaciones {
   timestamp    DateTime   @default(now()) @db.Timestamptz(6)
   mensajeros   mensajeros @relation(fields: [mensajero_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
+  @@index([timestamp])
   @@index([mensajero_id, timestamp(sort: Desc)], map: "idx_ubicaciones_mensajero_ts")
 }
 
@@ -304,18 +327,34 @@ model users {
   password                String
   role                    rol_usuario
   estado                  estado_usuario            @default(activo)
+  last_login              DateTime?                 @db.Timestamptz(6)
   created_at              DateTime                  @default(now()) @db.Timestamptz(6)
+  updated_at              DateTime                  @updatedAt @db.Timestamptz(6)
+  sesiones                sesiones[]
   acciones_admin          acciones_admin[]
   asignaciones            asignaciones[]
   bloqueos                bloqueos[]
   bonos                   bonos[]
-  clientes                clientes[]
+  clientes                clientes?
   config_operativa        config_operativa[]
   descansos               descansos[]
-  mensajeros              mensajeros[]
+  mensajeros              mensajeros?
   notificaciones          notificaciones[]
   tarifas                 tarifas[]
   validaciones_documentos validaciones_documentos[]
+}
+
+model sesiones {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id       String    @db.Uuid
+  refresh_token String
+  dispositivo   String?   @db.VarChar(100)
+  ip            String?   @db.VarChar(45)
+  expiracion    DateTime  @db.Timestamptz(6)
+  created_at    DateTime  @default(now()) @db.Timestamptz(6)
+
+  usuario users @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  @@index([created_at])
 }
 
 model validaciones_documentos {
@@ -332,11 +371,17 @@ model validaciones_documentos {
 model vehiculos {
   id           String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   mensajero_id String     @db.Uuid
+  marca        String 
+  modelo       String
+  color        String
+  cilindraje   String
   placa        String     @unique @db.VarChar(20)
-  tipo         String     @default("moto") @db.VarChar(20)
-  estado       String     @default("activo") @db.VarChar(20)
+  tipo         tipo_vehiculo
+  estado       estado_vehiculo @default(activo)
   created_at   DateTime   @default(now()) @db.Timestamptz(6)
-  mensajeros   mensajeros @relation(fields: [mensajero_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  updated_at   DateTime   @updatedAt @db.Timestamptz(6)
+  mensajeros   mensajeros @relation(fields: [mensajero_id], references: [id], onDelete: Cascade)
+  @@index([mensajero_id])
 }
 
 enum estado_cliente {
@@ -422,6 +467,25 @@ enum tipo_dia {
   festivo
 }
 
+enum tipo_notificacion {
+  sistema
+  solicitud
+  turno
+  documento
+  pago
+  alerta
+}
+
+enum dia_semana {
+  lunes
+  martes
+  miercoles
+  jueves
+  viernes
+  sabado
+  domingo
+}
+
 enum tipo_doc {
   soat
   tecnomecanica
@@ -454,4 +518,16 @@ enum tipo_punto {
 enum tipo_cliente {
   empresa 
   persona
+}
+
+enum tipo_vehiculo {
+  moto
+  bicicleta
+  carro
+}
+
+enum estado_vehiculo {
+  activo
+  mantenimiento
+  inactivo
 }

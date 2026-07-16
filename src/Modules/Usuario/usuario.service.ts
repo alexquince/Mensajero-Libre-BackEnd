@@ -1,11 +1,5 @@
 // src/usuario/usuario.service.ts
-import {
-  Injectable,
-  BadRequestException,
-  ConflictException,
-  ForbiddenException,
-  NotFoundException,
-} from '@nestjs/common';
+import {Injectable,ConflictException,ForbiddenException,NotFoundException,} from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateUsuarioDto } from './dto/create.usuario.dto';
 import { UpdateUsuarioDto } from './dto/update-usuario.dto';
@@ -14,88 +8,101 @@ import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class UsuarioService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) {}
 
- 
-  // CREAR USUARIO (solo admin)
- 
-  async create(adminId: string, dto: CreateUsuarioDto): Promise<Omit<users, 'password'>> {
-    const { name, email, role, password } = dto;
+  // CREAR USUARIO
+  
+  async create(
+    adminId: string,
+    dto: CreateUsuarioDto,
+  ): Promise<Omit<users, 'password'>> {
+    const { name, email, password, role } = dto;
 
-    // Verificar rol del administrador
+    // Verificar administrador
     const admin = await this.prisma.users.findUnique({
       where: { id: adminId },
     });
+
     if (!admin || admin.role !== 'admin') {
-      throw new ForbiddenException('No cuentas con los permisos para la administración');
+      throw new ForbiddenException(
+        'No cuentas con permisos para realizar esta acción.',
+      );
     }
 
-    // Validar email único
-    const existingUser = await this.prisma.users.findUnique({
+    // Validar email
+    const existe = await this.prisma.users.findUnique({
       where: { email },
     });
-    if (existingUser) {
-      throw new ConflictException('Ya se encuentra registrado en el sistema');
+
+    if (existe) {
+      throw new ConflictException(
+        'Ya existe un usuario registrado con ese correo.',
+      );
     }
 
-    // Encriptar contraseña
+    // Hash contraseña
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Crear usuario
-    const nuevoUsuario = await this.prisma.users.create({
-      data: {
-        name,
-        email,
-        password: hashedPassword,
-        role,
-        estado: 'activo',
-      },
-    });
-
-    // Crear perfil según el rol
-    if (role === 'mensajero') {
-      await this.prisma.mensajeros.create({
+    // Transacción
+    const usuario = await this.prisma.$transaction(async (tx) => {
+      const nuevoUsuario = await tx.users.create({
         data: {
-          user_id: nuevoUsuario.id,
-          estado: 'pendiente',
-          horas_semanales_objetivo: 48,
-          dias_compensatorios: 0,
-        },
-      });
-    }
-
-    if (role === 'cliente') {
-      await this.prisma.clientes.create({
-        data: {
-          user_id: nuevoUsuario.id,
-          nombre_empresa: 'Pendiente',
-          tipo_empresa: 'comercio',
+          name,
+          email,
+          password: hashedPassword,
+          role,
           estado: 'activo',
-          saldo_pendiente: 0,
-          metodo_pago: 'semanal',
-          autorizado_mensual: false,
         },
       });
-    }
 
-    // Registrar acción del administrador
-    await this.prisma.acciones_admin.create({
-      data: {
-        admin_id: adminId,
-        tipo_accion: 'crear_usuario',
-        entidad: 'users',
-        entidad_id: nuevoUsuario.id,
-        descripcion: `Creó usuario con rol ${role}`,
-      },
+      // Perfil Mensajero
+      if (role === 'mensajero') {
+        await tx.mensajeros.create({
+          data: {
+            user_id: nuevoUsuario.id,
+            estado: 'pendiente',
+            horas_semanales_objetivo: 48,
+            dias_compensatorios: 0,
+          },
+        });
+      }
+
+      // Perfil Cliente
+      if (role === 'cliente') {
+        await tx.clientes.create({
+          data: {
+            user_id: nuevoUsuario.id,
+            nombre_empresa: 'Pendiente',
+            tipo_empresa: 'comercio',
+            estado: 'activo',
+            saldo_pendiente: 0,
+            metodo_pago: 'semanal',
+            autorizado_mensual: false,
+          },
+        });
+      }
+
+      // Auditoría
+      await tx.acciones_admin.create({
+        data: {
+          admin_id: adminId,
+          tipo_accion: 'crear_usuario',
+          entidad: 'users',
+          entidad_id: nuevoUsuario.id,
+          descripcion: `Creó un usuario con rol ${role}`,
+        },
+      });
+
+      return nuevoUsuario;
     });
 
-    // No devolver la contraseña
-    const { password: _, ...usuarioSinPassword } = nuevoUsuario;
-    return usuarioSinPassword as Omit<users, 'password'>;
+    const { password: _, ...usuarioSinPassword } = usuario;
+
+    return usuarioSinPassword;
   }
 
-  
   // LISTAR USUARIOS
+  
   async findAll(params: {
     skip?: number;
     take?: number;
@@ -103,6 +110,7 @@ export class UsuarioService {
     orderBy?: Prisma.usersOrderByWithRelationInput;
   }) {
     const { skip, take, where, orderBy } = params;
+
     return this.prisma.users.findMany({
       skip,
       take,
@@ -114,50 +122,53 @@ export class UsuarioService {
         email: true,
         role: true,
         estado: true,
+        last_login: true,
         created_at: true,
-        
       },
     });
   }
-
 
   // BUSCAR POR ID
   
   async findOne(id: string) {
-    const user = await this.prisma.users.findUnique({
+    const usuario = await this.prisma.users.findUnique({
       where: { id },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        role: true,
-        estado: true,
-        created_at: true,
-        cliente: true,   
-        mensajero: true, 
+      include: {
+        clientes: true,
+        mensajeros: true,
       },
     });
-    if (!user) {
-      throw new NotFoundException(`Usuario con id ${id} no encontrado`);
+
+    if (!usuario) {
+      throw new NotFoundException(
+        `No existe un usuario con id ${id}`,
+      );
     }
-    return user;
+
+    const { password, ...resultado } = usuario;
+
+    return resultado;
   }
 
-  // ACTUALIZAR USUARIO
- 
+  // ACTUALIZAR
+  
   async update(id: string, dto: UpdateUsuarioDto) {
-    // Verificar existencia
     await this.findOne(id);
 
-    // Preparar datos
-    let data: any = { ...dto };
+    const data: Prisma.usersUpdateInput = {};
+
+    if (dto.name !== undefined) data.name = dto.name;
+
+    if (dto.email !== undefined) data.email = dto.email;
+
+    if (dto.estado !== undefined) data.estado = dto.estado;
+
     if (dto.password) {
       data.password = await bcrypt.hash(dto.password, 10);
     }
-  
-    delete data.role;
 
-    const updated = await this.prisma.users.update({
+    // El rol no debe modificarse
+    const usuario = await this.prisma.users.update({
       where: { id },
       data,
       select: {
@@ -166,16 +177,26 @@ export class UsuarioService {
         email: true,
         role: true,
         estado: true,
+        last_login: true,
         created_at: true,
+        updated_at: true,
       },
     });
-    return updated;
+
+    return usuario;
   }
 
- // ELIMINAR USUARIO (solo admin)
-
+  // ELIMINAR
+  
   async remove(id: string) {
     await this.findOne(id);
-    return this.prisma.users.delete({ where: { id } });
+
+    await this.prisma.users.delete({
+      where: { id },
+    });
+
+    return {
+      message: 'Usuario eliminado correctamente.',
+    };
   }
 }

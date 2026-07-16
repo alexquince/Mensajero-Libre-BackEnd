@@ -1,39 +1,36 @@
-// src/usuario/usuario.controller.ts
-import {
-  Controller,
-  Get,
-  Post,
-  Body,
-  Patch,
-  Param,
-  Delete,
-  ParseUUIDPipe,
-  Req,
-  Query,
-} from '@nestjs/common';
+import {Body,Controller,Delete,Get,HttpCode,HttpStatus,Param,ParseUUIDPipe,Patch,Post,Query,Req,UnauthorizedException,} from '@nestjs/common';
+import type { Request } from 'express';
+import { rol_usuario, estado_usuario } from '@prisma/client';
 import { UsuarioService } from './usuario.service';
 import { CreateUsuarioDto } from './dto/create.usuario.dto';
 import { UpdateUsuarioDto } from './dto/update-usuario.dto';
-import { rol_usuario, estado_usuario } from '@prisma/client';
 
 @Controller('usuarios')
-// @UseGuards(JwtAuthGuard, RolesGuard) //usar cuando este creado auth...
+// @UseGuards(JwtAuthGuard, RolesGuard)
 export class UsuarioController {
   constructor(private readonly usuarioService: UsuarioService) {}
 
-  
   @Post()
-  //@Roles('admin')
-  create(@Req() req: any, @Body() createUsuarioDto: CreateUsuarioDto) {
-    // el admin id viene del token JWT en req.user.id
-    const adminId = req.user?.id || 'admin-temp-id'; // Reemplazar
-    return this.usuarioService.create(adminId, createUsuarioDto);
+  @HttpCode(HttpStatus.CREATED)
+  // @Roles('admin')
+  create(
+    @Req() req: Request,
+    @Body() createUsuarioDto: CreateUsuarioDto,
+  ) {
+    const user = (req as any).user;
+
+    if (!user) {
+      throw new UnauthorizedException(
+        'Usuario no autenticado. Debe iniciar sesión.',
+      );
+    }
+
+    return this.usuarioService.create(user.id, createUsuarioDto);
   }
 
-  // 2. Listar todos los usuarios *filtros*
   @Get()
-  // roles admin
-  async findAll(
+  // @Roles('admin')
+  findAll(
     @Query('skip') skip?: string,
     @Query('take') take?: string,
     @Query('role') role?: rol_usuario,
@@ -41,30 +38,40 @@ export class UsuarioController {
     @Query('search') search?: string,
   ) {
     return this.usuarioService.findAll({
-      skip: skip ? +skip : undefined,
-      take: take ? +take : undefined,
+      skip: skip ? Number(skip) : undefined,
+      take: take ? Number(take) : undefined,
       where: {
         ...(role && { role }),
         ...(estado && { estado }),
         ...(search && {
           OR: [
-            { name: { contains: search, mode: 'insensitive' } },
-            { email: { contains: search, mode: 'insensitive' } },
+            {
+              name: {
+                contains: search,
+                mode: 'insensitive',
+              },
+            },
+            {
+              email: {
+                contains: search,
+                mode: 'insensitive',
+              },
+            },
           ],
         }),
       },
-      orderBy: { created_at: 'desc' },
+      orderBy: {
+        created_at: 'desc',
+      },
     });
   }
 
-  //Obtener un usuario por ID
   @Get(':id')
   // @Roles('admin')
   findOne(@Param('id', ParseUUIDPipe) id: string) {
     return this.usuarioService.findOne(id);
   }
 
-  // Actualizar un usuario (solo admin o el propio usuario)
   @Patch(':id')
   // @Roles('admin')
   update(
@@ -74,8 +81,8 @@ export class UsuarioController {
     return this.usuarioService.update(id, updateUsuarioDto);
   }
 
-  // Eliminar un usuario *admin*
   @Delete(':id')
+  @HttpCode(HttpStatus.NO_CONTENT)
   // @Roles('admin')
   remove(@Param('id', ParseUUIDPipe) id: string) {
     return this.usuarioService.remove(id);
