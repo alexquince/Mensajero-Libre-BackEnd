@@ -1,9 +1,4 @@
-import {
-  Injectable,
-  NotFoundException,
-  BadRequestException,
-  ForbiddenException,
-} from '@nestjs/common';
+import {Injectable,NotFoundException,BadRequestException,ForbiddenException,} from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateDescansoDto } from './dto/create-descanso.dto';
 import { UpdateDescansoDto } from './dto/update-descanso.dto';
@@ -78,11 +73,13 @@ export class DescansoService {
       where,
       orderBy: orderBy || { fecha: 'asc' },
       include: {
-        mensajeros: {
-          include: { users: true }, // traer datos del usuario relacionado
-        },
-        aprobador: true, // datos del admin que aprobó
-      },
+  mensajeros: {
+    include: {
+      users: true,
+    },
+  },
+  users: true,
+},
     });
   }
 
@@ -93,9 +90,13 @@ export class DescansoService {
     const descanso = await this.prisma.descansos.findUnique({
       where: { id },
       include: {
-        mensajeros: { include: { users: true } },
-        aprobador: true,
-      },
+  mensajeros: {
+    include: {
+      users: true,
+    },
+  },
+  users: true,
+},
     });
     if (!descanso) {
       throw new NotFoundException(`Descanso con id ${id} no encontrado`);
@@ -128,9 +129,13 @@ export class DescansoService {
       where: { id },
       data,
       include: {
-        mensajeros: { include: { users: true } },
-        aprobador: true,
-      },
+  mensajeros: {
+    include: {
+      users: true,
+    },
+  },
+  users: true,
+},
     });
   }
 
