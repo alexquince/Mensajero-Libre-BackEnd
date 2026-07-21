@@ -4,6 +4,8 @@ import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { Get, Req, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { Roles } from './decorators/roles.decorator';
+import { RolesGuard } from './guards/roles.guard';
 
 
 @Controller('auth')
@@ -22,7 +24,8 @@ register(@Body() registerDto: RegisterDto) {
   }
 
   @Get('profile')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles('admin')
 profile(@Req() req: Request) {
   return (req as any).user;
 }
