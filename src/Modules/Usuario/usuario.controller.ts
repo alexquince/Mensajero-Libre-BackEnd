@@ -29,7 +29,7 @@ export class UsuarioController {
   }
 
   @Get()
-  // @Roles('admin')
+  
   findAll(
     @Query('skip') skip?: string,
     @Query('take') take?: string,
