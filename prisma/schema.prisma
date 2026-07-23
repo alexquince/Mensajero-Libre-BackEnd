@@ -370,7 +370,7 @@ model validaciones_documentos {
 
 model vehiculos {
   id           String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  mensajero_id String     @db.Uuid
+  mensajero_id String     @unique @db.Uuid
   marca        String 
   modelo       String
   color        String
