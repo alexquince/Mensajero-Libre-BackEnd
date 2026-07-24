@@ -3,23 +3,23 @@ import { tipo_vehiculo } from '@prisma/client';
 
 export class CreateVehiculoDto {
   @IsUUID()
-  mensajero_id: string;
+  mensajero_id!: string;
 
   @IsString()
-  marca: string;
+  marca!: string;
 
   @IsString()
-  modelo: string;
+  modelo!: string;
 
   @IsString()
-  color: string;
+  color!: string;
 
   @IsString()
-  cilindraje: string;
+  cilindraje!: string;
 
   @IsString()
-  placa: string;
+  placa!: string;
 
   @IsEnum(tipo_vehiculo)
-  tipo: tipo_vehiculo;
+  tipo!: tipo_vehiculo;
 }

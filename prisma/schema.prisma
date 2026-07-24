@@ -150,6 +150,7 @@ model documentos {
 
   @@index([mensajero_id])
   @@index([estado])
+  @@unique([mensajero_id, tipo])
 }
 
 model incidentes {
