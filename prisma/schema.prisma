@@ -240,7 +240,7 @@ model puntos_mensajero {
 model solicitudes {
   id                    String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   cliente_id            String           @db.Uuid
-  tarifa_id             String?          @db.Uuid
+  tarifa_id             String          @db.Uuid
   fecha                 DateTime         @db.Date
   direccion             String
   latitud               Decimal?
@@ -255,7 +255,7 @@ model solicitudes {
   created_at            DateTime         @default(now()) @db.Timestamptz(6)
   updated_at            DateTime         @updatedAt
   clientes              clientes         @relation(fields: [cliente_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  tarifas               tarifas?         @relation(fields: [tarifa_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  tarifas               tarifas          @relation(fields: [tarifa_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   turnos                turnos[]
 
   @@index([cliente_id, fecha], map: "idx_solicitudes_cliente")
