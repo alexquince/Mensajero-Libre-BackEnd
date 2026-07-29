@@ -36,6 +36,9 @@ model asignaciones {
   created_at DateTime        @default(now()) @db.Timestamptz(6)
   users      users           @relation(fields: [admin_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   turnos     turnos          @relation(fields: [turno_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([turno_id], map: "idx_asignaciones_turno")
+  @@index([admin_id], map: "idx_asignaciones_admin")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -168,6 +171,10 @@ model incidentes {
   turnos             turnos          @relation(fields: [turno_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@index([mensajero_id], map: "idx_incidentes_mensajero")
+  @@index([turno_id], map: "idx_incidentes_turno")
+  @@index([nivel], map: "idx_incidentes_nivel")
+  @@index([tipo], map: "idx_incidentes_tipo")
+  @@index([created_at])
 }
 
 model mensajeros {
@@ -281,7 +288,7 @@ model tarifas {
 
 model turnos {
   id                 String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  solicitud_id       String          @db.Uuid
+  solicitud_id       String          @unique  @db.Uuid
   mensajero_id       String          @db.Uuid
   estado             estado_turno    @default(pendiente)
   observaciones      String?

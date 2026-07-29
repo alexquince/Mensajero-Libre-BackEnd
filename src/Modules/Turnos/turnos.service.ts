@@ -1,4 +1,3 @@
-// src/turnos/turnos.service.ts
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { Prisma, turnos, estado_turno, tipo_asignacion } from '@prisma/client';

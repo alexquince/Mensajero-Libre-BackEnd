@@ -8,6 +8,8 @@ import { VehiculoModule } from './Modules/Vehiculo/vehiculo.module';
 import { ClienteModule } from './Modules/Cliente/cliente.module';
 import { TarifaModule } from './Modules/Tarifa/tarifa.module';
 import { SolicitudModule } from './Modules/Solicitud/solicitud.module';
+import { AsignacionModule } from './Modules/Asignacion/asignacion.module';
+import { IncidenteModule } from './Modules/Incidente/incidente.module';
 
 @Module({
   imports: [
@@ -22,7 +24,8 @@ import { SolicitudModule } from './Modules/Solicitud/solicitud.module';
     ClienteModule,
     TarifaModule,
     SolicitudModule,
-     
+    AsignacionModule,
+    IncidenteModule, 
   ],
 })
 export class AppModule {}

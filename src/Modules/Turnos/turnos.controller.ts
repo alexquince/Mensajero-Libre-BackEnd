@@ -1,7 +1,4 @@
-// src/turnos/turnos.controller.ts
-import {
-  Controller, Get, Post, Body, Patch, Param, Delete, Query, ParseUUIDPipe, UseGuards, Req,
-} from '@nestjs/common';
+import {Controller,Get,Post,Body,Patch,Param,Delete,Query,ParseUUIDPipe,UseGuards,Req,} from '@nestjs/common';
 import { TurnosService } from './turnos.service';
 import { CreateTurnoDto } from './dto/create.turno.dto';
 import { UpdateTurnoDto } from './dto/update-turno.dto';
