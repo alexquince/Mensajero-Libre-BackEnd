@@ -9,4 +9,4 @@ import { PrismaModule } from '../../prisma/prisma.module';
   providers: [DescansoService],
   exports: [DescansoService],
 })
-export class DescansoModule {}
+export class DescansoModule {} 

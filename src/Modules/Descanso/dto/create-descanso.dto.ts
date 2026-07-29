@@ -1,4 +1,4 @@
-import { IsUUID, IsDate, IsDateString, IsOptional, IsString } from "class-validator";
+import {IsUUID,IsDateString,IsOptional,IsString} from "class-validator";
 
 export class CreateDescansoDto{
     @IsUUID()

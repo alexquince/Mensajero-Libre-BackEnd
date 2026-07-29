@@ -2,7 +2,7 @@ import {Injectable,NotFoundException,BadRequestException,ForbiddenException,} fr
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateDescansoDto } from './dto/create-descanso.dto';
 import { UpdateDescansoDto } from './dto/update-descanso.dto';
-import { descansos, Prisma } from '@prisma/client';
+import { descansos, estado_descanso,Prisma } from '@prisma/client';
 
 @Injectable()
 export class DescansoService {
@@ -51,7 +51,7 @@ export class DescansoService {
     skip?: number;
     take?: number;
     mensajero_id?: string;
-    estado?: string;
+    estado?: estado_descanso;
     fecha_desde?: Date;
     fecha_hasta?: Date;
     orderBy?: Prisma.descansosOrderByWithRelationInput;
@@ -60,11 +60,10 @@ export class DescansoService {
 
     const where: Prisma.descansosWhereInput = {};
     if (mensajero_id) where.mensajero_id = mensajero_id;
-    if (estado) where.estado = estado as any;
-    if (fecha_desde || fecha_hasta) {
-      where.fecha = {};
-      if (fecha_desde) where.fecha.gte = fecha_desde;
-      if (fecha_hasta) where.fecha.lte = fecha_hasta;
+    if (estado) {where.estado = estado;}
+    if (fecha_desde || fecha_hasta) {where.fecha = {};
+    if (fecha_desde) where.fecha.gte = fecha_desde;
+    if (fecha_hasta) where.fecha.lte = fecha_hasta;
     }
 
     return this.prisma.descansos.findMany({
@@ -108,21 +107,33 @@ export class DescansoService {
   //  ACTUALIZAR DESCANSO (solo admin para aprobar/rechazar)
   
   async update(id: string, adminId: string, dto: UpdateDescansoDto) {
-    // Verificar que el descanso existe
-    await this.findOne(id);
+  // Verificar que el descanso existe
+  const descanso = await this.findOne(id);
 
-    // Verificar que el admin existe y tiene rol admin
-    const admin = await this.prisma.users.findUnique({
-      where: { id: adminId },
-    });
+  // No permitir modificar descansos ya aprobados
+  if (descanso.estado === 'aprobado') {
+    throw new BadRequestException(
+      'Un descanso aprobado no puede modificarse',
+    );
+  }
+
+  // Verificar que el admin existe y tiene rol admin
+  const admin = await this.prisma.users.findUnique({
+  where: { id: adminId },
+  select: {
+    role: true,
+  },
+  });
+
+
     if (!admin || admin.role !== 'admin') {
       throw new ForbiddenException('Solo los administradores pueden aprobar o rechazar descansos');
     }
 
     // Si el estado cambia a 'aprobado' o 'rechazado', asignar aprobado_por
-    const data: any = { ...dto };
+    const data: Prisma.descansosUpdateInput = { ...dto };
     if (dto.estado === 'aprobado' || dto.estado === 'rechazado') {
-      data.aprobado_por = adminId;
+      data.users = {connect:{id:adminId,},};
     }
 
     return this.prisma.descansos.update({
@@ -148,7 +159,9 @@ export class DescansoService {
     if (adminId) {
       const admin = await this.prisma.users.findUnique({
         where: { id: adminId },
-      });
+        select: {
+        role: true, },
+        });
       if (admin?.role === 'admin') {
         return this.prisma.descansos.delete({ where: { id } });
       }

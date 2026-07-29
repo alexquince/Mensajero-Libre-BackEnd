@@ -10,6 +10,8 @@ import { TarifaModule } from './Modules/Tarifa/tarifa.module';
 import { SolicitudModule } from './Modules/Solicitud/solicitud.module';
 import { AsignacionModule } from './Modules/Asignacion/asignacion.module';
 import { IncidenteModule } from './Modules/Incidente/incidente.module';
+import { CalificacionModule } from './Modules/Calificacion/calificacion.module';
+import { MetricaMensajeroModule } from './Modules/MetricaMensajero/metrica-mensajero.module';
 
 @Module({
   imports: [
@@ -26,6 +28,8 @@ import { IncidenteModule } from './Modules/Incidente/incidente.module';
     SolicitudModule,
     AsignacionModule,
     IncidenteModule, 
+    CalificacionModule,
+    MetricaMensajeroModule, 
   ],
 })
 export class AppModule {}

@@ -88,6 +88,9 @@ model calificaciones {
   turnos       turnos     @relation(fields: [turno_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@index([mensajero_id], map: "idx_calificaciones_mens")
+  @@index([cliente_id], map: "idx_calificaciones_cliente")
+  @@index([created_at], map: "idx_calificaciones_fecha")
+  @@index([mensajero_id, created_at], map: "idx_calificaciones_mens_fecha")
 }
 
 model clientes {
@@ -135,6 +138,9 @@ model descansos {
 
   @@unique([mensajero_id, fecha], map: "un_descanso_por_dia")
   @@index([mensajero_id, fecha], map: "idx_descansos_mensajero")
+  @@index([estado], map: "idx_descansos_estado")
+  @@index([fecha], map: "idx_descansos_fecha")
+  @@index([estado, fecha], map: "idx_descansos_estado_fecha")
 }
 
 model documentos {
@@ -213,6 +219,11 @@ model metricas_mensajero {
   semana_inicio               DateTime?  @db.Date
   updated_at                  DateTime   @updatedAt
   mensajeros                  mensajeros @relation(fields: [mensajero_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([score], map: "idx_metricas_score")
+  @@index([tasa_cumplimiento], map: "idx_metricas_cumplimiento")
+  @@index([semana_inicio], map: "idx_metricas_semana")
+  @@index([score, tasa_cumplimiento], map: "idx_metricas_ranking")
 }
 
 model notificaciones {
