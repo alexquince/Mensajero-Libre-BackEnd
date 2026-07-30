@@ -1,8 +1,7 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
-import { Prisma, turnos, estado_turno, tipo_asignacion } from '@prisma/client';
+import { Prisma, turnos,} from '@prisma/client';
 import { CreateTurnoDto } from './dto/create.turno.dto';
-import { UpdateTurnoDto } from './dto/update-turno.dto';
 
 @Injectable()
 export class TurnosService {

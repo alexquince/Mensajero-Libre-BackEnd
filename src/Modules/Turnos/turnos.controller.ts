@@ -2,7 +2,6 @@ import {Controller,Get,Post,Body,Patch,Param,Delete,Query,ParseUUIDPipe,UseGuard
 import { TurnosService } from './turnos.service';
 import { CreateTurnoDto } from './dto/create.turno.dto';
 import { UpdateTurnoDto } from './dto/update-turno.dto';
-import { CheckInDto } from './dto/checkin-turno.dto';
 import { estado_turno } from '@prisma/client';
 
 @Controller('turnos')
@@ -44,13 +43,4 @@ export class TurnosController {
     return this.turnosService.remove(id);
   }
 
-  @Post(':id/checkin')
-  checkIn(@Param('id', ParseUUIDPipe) id: string, @Body() checkInDto: CheckInDto) {
-    return this.turnosService.checkIn(id, checkInDto.latitud, checkInDto.longitud);
   }
-
-  @Post(':id/checkout')
-  checkOut(@Param('id', ParseUUIDPipe) id: string, @Body() checkOutDto: CheckInDto) {
-    return this.turnosService.checkOut(id, checkOutDto.latitud, checkOutDto.longitud);
-  }
-}
