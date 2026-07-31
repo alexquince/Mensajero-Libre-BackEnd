@@ -2,10 +2,16 @@ import { Injectable, NotFoundException, BadRequestException } from '@nestjs/comm
 import { PrismaService } from '../../prisma/prisma.service';
 import { Prisma, turnos,} from '@prisma/client';
 import { CreateTurnoDto } from './dto/create.turno.dto';
+import { MetricaMensajeroService } from '../MetricaMensajero/metrica-mensajero.service';
+import { DocumentoService } from '../Documento/documento.service';
 
 @Injectable()
 export class TurnosService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+  private readonly prisma: PrismaService,
+  private readonly metricaMensajeroService: MetricaMensajeroService,
+  private readonly documentoService: DocumentoService,
+) {}
 
   // Crear turno con validaciones
   async create(adminId: string, dto: CreateTurnoDto): Promise<turnos> {
@@ -26,6 +32,7 @@ export class TurnosService {
     });
     if (!mensajero || mensajero.estado !== 'activo')
       throw new BadRequestException('Mensajero no disponible');
+      await this.documentoService.validarDocumentosMensajero(mensajero_id,);
 
     // Crear turno
     const turno = await this.prisma.turnos.create({
@@ -90,10 +97,25 @@ export class TurnosService {
     return turno;
   }
 
-  async update(id: string, data: Prisma.turnosUpdateInput): Promise<turnos> {
-    await this.findOne(id);
-    return this.prisma.turnos.update({ where: { id }, data });
+  async update(
+  id: string,
+  data: Prisma.turnosUpdateInput,
+): Promise<turnos> {
+  await this.findOne(id);
+
+  const turno = await this.prisma.turnos.update({
+    where: { id },
+    data,
+  });
+
+  if (turno.estado === 'completado') {
+    await this.metricaMensajeroService.recalcularMetricas(
+      turno.mensajero_id,
+    );
   }
+
+  return turno;
+}
 
   async remove(id: string): Promise<turnos> {
     const turno = await this.findOne(id);

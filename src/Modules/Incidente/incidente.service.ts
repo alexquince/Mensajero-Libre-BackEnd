@@ -3,10 +3,13 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { Prisma, incidentes } from '@prisma/client';
 import { CreateIncidenteDto } from './dto/create-incidente.dto';
 import { UpdateIncidenteDto } from './dto/update-incidente.dto';
+import { MetricaMensajeroService } from '../MetricaMensajero/metrica-mensajero.service';
 
 @Injectable()
 export class IncidenteService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+  private readonly prisma: PrismaService,
+  private readonly metricaMensajeroService: MetricaMensajeroService,) {}
 
   async create(dto: CreateIncidenteDto): Promise<incidentes> {
     const { turno_id, mensajero_id } = dto;
@@ -41,8 +44,9 @@ export class IncidenteService {
         accion_tomada: dto.accion_tomada,
         hay_lesionados: dto.hay_lesionados,
         reportado_a_seguro: dto.reportado_a_seguro,
-    },
-    });
+        },
+        });
+        await this.metricaMensajeroService.recalcularMetricas(mensajero_id);
         return incidente;
 
 }

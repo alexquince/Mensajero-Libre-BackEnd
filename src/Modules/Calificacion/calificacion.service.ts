@@ -58,9 +58,14 @@ export class CalificacionService {
     );
   }
 
-  return this.prisma.calificaciones.create({
-    data: dto,
-  });
+ const calificacion = await this.prisma.calificaciones.create({
+  data: dto,
+});
+
+// Recalcular las métricas del mensajero
+await this.metricaMensajeroService.recalcularMetricas(dto.mensajero_id);
+
+return calificacion;
 }
 
 async findAll(params: {
@@ -119,88 +124,37 @@ async update(
   id: string,
   dto: UpdateCalificacionDto,
 ): Promise<calificaciones> {
+  // Verificar que exista
   await this.findOne(id);
 
-  return this.prisma.calificaciones.update({
-    where: { id },
-    data: dto,
-  });
+  // Actualizar la calificación
+ const calificacion = await this.prisma.calificaciones.update({
+  where: { id },
+  data: dto,
+});
+
+await this.metricaMensajeroService.recalcularMetricas(
+  calificacion.mensajero_id,
+);
+
+return calificacion;
 }
 
 async remove(id: string): Promise<calificaciones> {
+  // Verificar que exista
   const calificacion = await this.findOne(id);
 
-  return this.prisma.calificaciones.delete({
-    where: { id: calificacion.id },
-  });
-}
-
-async recalcularMetricas(mensajeroId: string): Promise<void> {
-  // Verificar que exista el registro de métricas
-  const metrica = await this.prisma.metricas_mensajero.findUnique({
-    where: {
-      mensajero_id: mensajeroId,
-    },
+  // Eliminar la calificación
+  await this.prisma.calificaciones.delete({
+    where: { id },
   });
 
-  if (!metrica) {
-    throw new NotFoundException(
-      'El mensajero no tiene métricas registradas',
-    );
-  }
-
-  // Buscar todas las calificaciones del mensajero
-  const calificaciones = await this.prisma.calificaciones.findMany({
-    where: {
-      mensajero_id: mensajeroId,
-    },
-  });
-
-  // Si aún no tiene calificaciones
-  if (calificaciones.length === 0) {
-    await this.prisma.metricas_mensajero.update({
-      where: {
-        mensajero_id: mensajeroId,
-      },
-      data: {
-        score: 0,
-      },
-    });
-    
-    return;
-  }
-  // Calcular el promedio de todas las calificaciones
-let suma = 0;
-
-for (const calificacion of calificaciones) {
-  suma +=
-    (calificacion.puntualidad +
-      calificacion.presentacion +
-      calificacion.actitud +
-      calificacion.vehiculo) / 4;
-}
-
-const score = Number(
-  (suma / calificaciones.length).toFixed(2),
+  await this.metricaMensajeroService.recalcularMetricas(
+  calificacion.mensajero_id,
 );
 
-// Contar los turnos del mensajero
-const totalTurnos = await this.prisma.turnos.count({
-  where: {
-    mensajero_id: mensajeroId,
-  },
-});
-
-// Actualizar métricas
-await this.prisma.metricas_mensajero.update({
-  where: {
-    mensajero_id: mensajeroId,
-  },
-  data: {
-    score,
-    total_turnos: totalTurnos,
-  },
-});
-
+  return calificacion;
 }
+
+
 }

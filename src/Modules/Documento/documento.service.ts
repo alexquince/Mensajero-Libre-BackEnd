@@ -186,4 +186,50 @@ async remove(id: string) {
     message: 'Documento eliminado correctamente.',
   };
 }
+async validarDocumentosMensajero(
+  mensajeroId: string,
+): Promise<void> {
+  const documentos = await this.prisma.documentos.findMany({
+    where: {
+      mensajero_id: mensajeroId,
+    },
+  });
+
+  const tiposRequeridos = [
+    'cedula',
+    'licencia',
+    'soat',
+    'tecnomecanica',
+  ];
+
+  for (const tipo of tiposRequeridos) {
+    const documento = documentos.find(
+      (d) => d.tipo === tipo,
+    );
+
+    if (!documento) {
+      throw new BadRequestException(
+        `El mensajero no tiene registrado el documento ${tipo}.`,
+      );
+    }
+
+    if (
+      documento.estado !== 'aprobado' ||
+      !documento.validado_por_admin
+    ) {
+      throw new BadRequestException(
+        `El documento ${tipo} aún no está aprobado.`,
+      );
+    }
+
+    if (
+      documento.fecha_vencimiento &&
+      documento.fecha_vencimiento < new Date()
+    ) {
+      throw new BadRequestException(
+        `El documento ${tipo} está vencido.`,
+      );
+    }
+  }
+}
 }

@@ -127,4 +127,63 @@ async remove(id: string): Promise<metricas_mensajero> {
   });
 }
 
+async recalcularMetricas(mensajeroId: string): Promise<void> {
+  // Verificar que existan métricas para el mensajero
+  const metrica = await this.prisma.metricas_mensajero.findUnique({
+    where: {
+      mensajero_id: mensajeroId,
+    },
+  });
+
+  if (!metrica) {
+    throw new NotFoundException(
+      'El mensajero no tiene métricas registradas',
+    );
+  }
+
+  // Obtener todas las calificaciones
+  const calificaciones = await this.prisma.calificaciones.findMany({
+    where: {
+      mensajero_id: mensajeroId,
+    },
+  });
+
+  // Calcular score
+  let score = 0;
+
+  if (calificaciones.length > 0) {
+    let suma = 0;
+
+    for (const calificacion of calificaciones) {
+      suma +=
+        (calificacion.puntualidad +
+          calificacion.presentacion +
+          calificacion.actitud +
+          calificacion.vehiculo) / 4;
+    }
+
+    score = Number(
+      (suma / calificaciones.length).toFixed(2),
+    );
+  }
+
+  // Contar turnos completados
+  const totalTurnos = await this.prisma.turnos.count({
+    where: {
+      mensajero_id: mensajeroId,
+      estado: 'completado',
+    },
+  });
+
+  await this.prisma.metricas_mensajero.update({
+    where: {
+      mensajero_id: mensajeroId,
+    },
+    data: {
+      score,
+      total_turnos: totalTurnos,
+    },
+  });
+}
+
 }
