@@ -1,16 +1,20 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { Prisma, turnos,} from '@prisma/client';
+import { AccionesAdminService } from '../AccionesAdmin/acciones-admin.service';
 import { CreateTurnoDto } from './dto/create.turno.dto';
 import { MetricaMensajeroService } from '../MetricaMensajero/metrica-mensajero.service';
+import { NotificacionService } from '../Notificacion/notificacion.service';
 import { DocumentoService } from '../Documento/documento.service';
 
 @Injectable()
 export class TurnosService {
   constructor(
   private readonly prisma: PrismaService,
+  private readonly accionesAdminService: AccionesAdminService,
   private readonly metricaMensajeroService: MetricaMensajeroService,
   private readonly documentoService: DocumentoService,
+  private readonly notificacionService: NotificacionService,
 ) {}
 
   // Crear turno con validaciones
@@ -28,8 +32,11 @@ export class TurnosService {
 
     // Verificar mensajero activo
     const mensajero = await this.prisma.mensajeros.findUnique({
-      where: { id: mensajero_id },
-    });
+  where: { id: mensajero_id },
+  include: {
+    users: true,
+  },
+});
     if (!mensajero || mensajero.estado !== 'activo')
       throw new BadRequestException('Mensajero no disponible');
       await this.documentoService.validarDocumentosMensajero(mensajero_id,);
@@ -57,9 +64,27 @@ export class TurnosService {
       where: { id: solicitud_id },
       data: { estado: 'asignada' },
     });
+    await this.notificacionService.create({
+  user_id: mensajero.user_id,
+  tipo: 'turno',
+  titulo: 'Nuevo turno asignado',
+  mensaje:
+    'Se te ha asignado un nuevo turno. Revisa los detalles en tu panel.',
+  entidad: 'turnos',
+  entidad_id: turno.id,
+  enviada: true,
+  leido: false,
+});
+await this.accionesAdminService.create({
+  admin_id: adminId,
+  tipo_accion: 'Asignó un turno',
+  entidad: 'turnos',
+  entidad_id: turno.id,
+});
 
     return this.findOne(turno.id);
   }
+  
 
   async findAll(params: {
     skip?: number;
@@ -167,14 +192,7 @@ export class TurnosService {
       },
     });
 
-    // Actualizar métricas del mensajero
-    await this.prisma.metricas_mensajero.update({
-      where: { mensajero_id: turno.mensajero_id },
-      data: {
-        total_turnos: { increment: 1 },
-        horas_acumuladas_semana: { increment: horas },
-      },
-    });
+   
     return updated;
   }
 }
