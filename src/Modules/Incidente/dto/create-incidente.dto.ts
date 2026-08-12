@@ -1,11 +1,4 @@
-import {
-  IsUUID,
-  IsEnum,
-  IsString,
-  IsOptional,
-  IsBoolean,
-  MaxLength,
-} from 'class-validator';
+import {IsUUID,IsEnum,IsString,IsOptional,IsBoolean,MaxLength,} from 'class-validator';
 import { tipo_incidente, nivel_incidente } from '@prisma/client';
 
 export class CreateIncidenteDto {

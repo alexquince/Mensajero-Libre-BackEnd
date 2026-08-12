@@ -1,4 +1,3 @@
-// src/usuario/usuario.service.ts
 import {Injectable,ConflictException,ForbiddenException,NotFoundException,} from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateUsuarioDto } from './dto/create.usuario.dto';

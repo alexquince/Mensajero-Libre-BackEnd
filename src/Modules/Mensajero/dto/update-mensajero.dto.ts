@@ -1,11 +1,6 @@
 import { PartialType } from '@nestjs/mapped-types';
 import { CreateMensajeroDto } from './create-mensajero.dto';
-import {
-  IsEnum,
-  IsInt,
-  IsOptional,
-  IsNumber,
-} from 'class-validator';
+import {IsEnum,IsInt,IsOptional,IsNumber,} from 'class-validator';
 import { estado_mensajero, dia_semana } from '@prisma/client';
 
 export class UpdateMensajeroDto extends PartialType(CreateMensajeroDto) {

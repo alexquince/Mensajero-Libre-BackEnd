@@ -3,7 +3,7 @@ import { dia_semana } from '@prisma/client';
 
 export class CreateMensajeroDto {
   @IsUUID()
-  user_id: string;
+  user_id!: string;
 
   @IsOptional()
   @IsEnum(dia_semana)

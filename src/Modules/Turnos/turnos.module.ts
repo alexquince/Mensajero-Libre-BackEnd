@@ -6,9 +6,11 @@ import { PrismaModule } from '../../prisma/prisma.module';
 import { MetricaMensajeroModule } from '../MetricaMensajero/metrica-mensajero.module';
 import { NotificacionModule } from '../Notificacion/notificacion.module';
 import { DocumentoModule } from '../Documento/documento.module';
+import { DescansoModule } from '../Descanso/descanso.module';
+import { BloqueosModule } from '../Bloqueos/bloqueos.module';
 
 @Module({
-  imports: [AccionesAdminModule,DocumentoModule,PrismaModule,NotificacionModule,MetricaMensajeroModule],
+  imports: [AccionesAdminModule,BloqueosModule,DescansoModule,DocumentoModule,PrismaModule,NotificacionModule,MetricaMensajeroModule],
   controllers: [TurnosController],
   providers: [TurnosService],
   exports: [TurnosService],

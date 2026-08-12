@@ -6,15 +6,19 @@ import { CreateTurnoDto } from './dto/create.turno.dto';
 import { MetricaMensajeroService } from '../MetricaMensajero/metrica-mensajero.service';
 import { NotificacionService } from '../Notificacion/notificacion.service';
 import { DocumentoService } from '../Documento/documento.service';
+import { DescansoService } from '../Descanso/descanso.service';
+import { BloqueosService } from '../Bloqueos/bloqueos.service';
 
 @Injectable()
 export class TurnosService {
   constructor(
   private readonly prisma: PrismaService,
   private readonly accionesAdminService: AccionesAdminService,
+  private readonly bloqueosService: BloqueosService,
   private readonly metricaMensajeroService: MetricaMensajeroService,
   private readonly documentoService: DocumentoService,
   private readonly notificacionService: NotificacionService,
+  private readonly descansoService: DescansoService,
 ) {}
 
   // Crear turno con validaciones
@@ -40,6 +44,25 @@ export class TurnosService {
     if (!mensajero || mensajero.estado !== 'activo')
       throw new BadRequestException('Mensajero no disponible');
       await this.documentoService.validarDocumentosMensajero(mensajero_id,);
+      const tieneBloqueo = await this.bloqueosService.verificarBloqueoMensajero(
+  mensajero_id,
+);
+
+if (tieneBloqueo) {
+  throw new BadRequestException(
+    'El mensajero tiene un bloqueo activo y no puede recibir turnos.',
+  );
+}
+      const tieneDescanso = await this.descansoService.verificarDescanso(
+  mensajero_id,
+  solicitud.fecha,
+);
+
+if (tieneDescanso) {
+  throw new BadRequestException(
+    'El mensajero tiene un descanso aprobado para la fecha del turno',
+  );
+}
 
     // Crear turno
     const turno = await this.prisma.turnos.create({

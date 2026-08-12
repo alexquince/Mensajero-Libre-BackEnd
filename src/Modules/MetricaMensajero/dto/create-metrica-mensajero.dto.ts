@@ -1,10 +1,4 @@
-import {
-  IsUUID,
-  IsOptional,
-  IsNumber,
-  IsDateString,
-  Min,
-} from 'class-validator';
+import {IsUUID,IsOptional,IsNumber,IsDateString,Min,} from 'class-validator';
 
 export class CreateMetricaMensajeroDto {
   @IsUUID()

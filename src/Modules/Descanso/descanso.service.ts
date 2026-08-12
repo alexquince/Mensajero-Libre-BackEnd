@@ -174,4 +174,19 @@ export class DescansoService {
 
     return this.prisma.descansos.delete({ where: { id } });
   }
+    async verificarDescanso(
+    mensajeroId: string,
+    fecha: Date,
+  ): Promise<boolean> {
+    const descanso = await this.prisma.descansos.findFirst({
+      where: {
+        mensajero_id: mensajeroId,
+        fecha: fecha,
+        estado: 'aprobado',
+      },
+    });
+
+    return !!descanso;
+  }
+  
 }

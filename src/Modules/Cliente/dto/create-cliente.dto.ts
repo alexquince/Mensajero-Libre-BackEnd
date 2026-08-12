@@ -1,9 +1,5 @@
 import {IsBoolean,IsEnum,IsOptional,IsString,IsUUID,} from 'class-validator';
-import {
-  metodo_pago,
-  tipo_cliente,
-  tipo_empresa,
-} from '@prisma/client';
+import {metodo_pago,tipo_cliente,tipo_empresa,} from '@prisma/client';
 
 export class CreateClienteDto {
 
