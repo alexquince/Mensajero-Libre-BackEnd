@@ -1,0 +1,221 @@
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { PrismaService } from '../../prisma/prisma.service';
+import { Prisma, turnos,} from '@prisma/client';
+import { AccionesAdminService } from '../AccionesAdmin/acciones-admin.service';
+import { CreateTurnoDto } from './dto/create.turno.dto';
+import { MetricaMensajeroService } from '../MetricaMensajero/metrica-mensajero.service';
+import { NotificacionService } from '../Notificacion/notificacion.service';
+import { DocumentoService } from '../Documento/documento.service';
+import { DescansoService } from '../Descanso/descanso.service';
+import { BloqueosService } from '../Bloqueos/bloqueos.service';
+
+@Injectable()
+export class TurnosService {
+  constructor(
+  private readonly prisma: PrismaService,
+  private readonly accionesAdminService: AccionesAdminService,
+  private readonly bloqueosService: BloqueosService,
+  private readonly metricaMensajeroService: MetricaMensajeroService,
+  private readonly documentoService: DocumentoService,
+  private readonly notificacionService: NotificacionService,
+  private readonly descansoService: DescansoService,
+) {}
+
+  // Crear turno con validaciones
+  async create(adminId: string, dto: CreateTurnoDto): Promise<turnos> {
+    const { solicitud_id, mensajero_id, tipo_asignacion } = dto;
+
+    // Verificar solicitud
+    const solicitud = await this.prisma.solicitudes.findUnique({
+      where: { id: solicitud_id },
+      include: { turnos: true },
+    });
+    if (!solicitud) throw new NotFoundException('Solicitud no encontrada');
+    if (solicitud.estado !== 'confirmada')
+      throw new BadRequestException('La solicitud debe estar confirmada');
+
+    // Verificar mensajero activo
+    const mensajero = await this.prisma.mensajeros.findUnique({
+  where: { id: mensajero_id },
+  include: {
+    users: true,
+  },
+});
+    if (!mensajero || mensajero.estado !== 'activo')
+      throw new BadRequestException('Mensajero no disponible');
+      await this.documentoService.validarDocumentosMensajero(mensajero_id,);
+      const tieneBloqueo = await this.bloqueosService.verificarBloqueoMensajero(
+  mensajero_id,
+);
+
+if (tieneBloqueo) {
+  throw new BadRequestException(
+    'El mensajero tiene un bloqueo activo y no puede recibir turnos.',
+  );
+}
+      const tieneDescanso = await this.descansoService.verificarDescanso(
+  mensajero_id,
+  solicitud.fecha,
+);
+
+if (tieneDescanso) {
+  throw new BadRequestException(
+    'El mensajero tiene un descanso aprobado para la fecha del turno',
+  );
+}
+
+    // Crear turno
+    const turno = await this.prisma.turnos.create({
+      data: {
+        solicitud_id,
+        mensajero_id,
+        estado: 'confirmado',
+      },
+    });
+
+    // Registrar asignación
+    await this.prisma.asignaciones.create({
+      data: {
+        turno_id: turno.id,
+        admin_id: adminId,
+        tipo: tipo_asignacion === 'automatico' ? 'automatico' : 'manual',
+      },
+    });
+
+    // Actualizar estado de solicitud
+    await this.prisma.solicitudes.update({
+      where: { id: solicitud_id },
+      data: { estado: 'asignada' },
+    });
+    await this.notificacionService.create({
+  user_id: mensajero.user_id,
+  tipo: 'turno',
+  titulo: 'Nuevo turno asignado',
+  mensaje:
+    'Se te ha asignado un nuevo turno. Revisa los detalles en tu panel.',
+  entidad: 'turnos',
+  entidad_id: turno.id,
+  enviada: true,
+  leido: false,
+});
+await this.accionesAdminService.create({
+  admin_id: adminId,
+  tipo_accion: 'Asignó un turno',
+  entidad: 'turnos',
+  entidad_id: turno.id,
+});
+
+    return this.findOne(turno.id);
+  }
+  
+
+  async findAll(params: {
+    skip?: number;
+    take?: number;
+    where?: Prisma.turnosWhereInput;
+    orderBy?: Prisma.turnosOrderByWithRelationInput;
+  }): Promise<turnos[]> {
+    const { skip, take, where, orderBy } = params;
+    return this.prisma.turnos.findMany({
+      skip,
+      take,
+      where,
+      orderBy,
+      include: {
+        solicitudes: { include: { clientes: true } },
+        mensajeros: { include: { users: true } },
+        calificaciones: true,
+        incidentes: true,
+      },
+    });
+  }
+
+  async findOne(id: string): Promise<turnos> {
+    const turno = await this.prisma.turnos.findUnique({
+      where: { id },
+      include: {
+        solicitudes: { include: { clientes: true, tarifas: true } },
+        mensajeros: { include: { users: true, metricas_mensajero: true } },
+        calificaciones: true,
+        incidentes: true,
+        asignaciones: { include: { users: true } },
+      },
+    });
+    if (!turno) throw new NotFoundException(`Turno ${id} no existe`);
+    return turno;
+  }
+
+  async update(
+  id: string,
+  data: Prisma.turnosUpdateInput,
+): Promise<turnos> {
+  await this.findOne(id);
+
+  const turno = await this.prisma.turnos.update({
+    where: { id },
+    data,
+  });
+
+  if (turno.estado === 'completado') {
+    await this.metricaMensajeroService.recalcularMetricas(
+      turno.mensajero_id,
+    );
+  }
+
+  return turno;
+}
+
+  async remove(id: string): Promise<turnos> {
+    const turno = await this.findOne(id);
+    if (!['pendiente', 'no_show'].includes(turno.estado)) {
+      throw new BadRequestException('No se puede eliminar un turno en curso o completado');
+    }
+    return this.prisma.turnos.delete({ where: { id } });
+  }
+
+  // Check-in
+  async checkIn(id: string, lat: number, lon: number) {
+    const turno = await this.prisma.turnos.findUnique({ where: { id } });
+    if (!turno) throw new NotFoundException();
+    if (turno.estado !== 'confirmado')
+      throw new BadRequestException('El turno no está confirmado');
+    return this.prisma.turnos.update({
+      where: { id },
+      data: {
+        estado: 'en_proceso',
+        hora_checkin: new Date(),
+        checkin_lat: lat,
+        checkin_lon: lon,
+      },
+    });
+  }
+
+  // Check-out + cálculo de pago
+  async checkOut(id: string, lat: number, lon: number) {
+    const turno = await this.prisma.turnos.findUnique({
+      where: { id },
+      include: { solicitudes: { include: { tarifas: true } } },
+    });
+    if (!turno) throw new NotFoundException();
+    if (turno.estado !== 'en_proceso')
+      throw new BadRequestException('Turno no está en proceso');
+
+    const horas = turno.solicitudes.total_horas.toNumber();
+    const tarifaHora = turno.solicitudes.tarifas?.tarifa_hora.toNumber() || 0;
+    const pago = horas * tarifaHora;
+
+    const updated = await this.prisma.turnos.update({
+      where: { id },
+      data: {
+        estado: 'completado',
+        hora_checkout: new Date(),
+        checkout_lat: lat,
+        checkout_lon: lon,
+        pago_mensajero: pago,
+      },
+    });
+
+   await this.metricaMensajeroService.recalcularMetricas(turno.mensajero_id);
+    return updated;
+  }
+}
