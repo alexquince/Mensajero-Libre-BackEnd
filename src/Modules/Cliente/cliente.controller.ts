@@ -1,16 +1,21 @@
-import {Body,Controller,Delete,Get,Post,Param,} from '@nestjs/common';
+import {Body,Controller,Delete,Get,Patch,Post,Param,} from '@nestjs/common';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { ClienteService } from './cliente.service';
 import { Roles } from '../Auth/decorators/roles.decorator';
 import { CreateClienteDto } from './dto/create-cliente.dto';
+import { UpdateClienteDto } from './dto/update-cliente.dto';
 
+@ApiTags('Clientes')
+@ApiBearerAuth('access-token')
 @Controller('clientes')
 export class ClienteController {
+
   constructor(
     private readonly clienteService: ClienteService,
   ) {}
 
   @Post()
-  @Roles('admin', 'cliente')
+  @Roles('admin')
   create(
     @Body() dto: CreateClienteDto,
   ) {
@@ -18,21 +23,29 @@ export class ClienteController {
   }
   @Get()
   @Roles('admin')
-findAll() {
+  findAll() {
   return this.clienteService.findAll();
-}
-@Get(':id')
-@Roles('admin')
-findOne(
+  }
+  @Get(':id')
+  @Roles('admin')
+  findOne(
   @Param('id') id: string,
-) {
+  ) {
   return this.clienteService.findOne(id);
-}
-@Delete(':id')
-@Roles('admin')
-remove(
+  }
+  @Patch(':id')
+  @Roles('admin')
+  update(
   @Param('id') id: string,
-) {
+  @Body() dto: UpdateClienteDto,
+  ) {
+  return this.clienteService.update(id, dto);
+  }
+  @Delete(':id')
+  @Roles('admin')
+  remove(
+  @Param('id') id: string,
+  ) {
   return this.clienteService.remove(id);
-}
+  }
 }

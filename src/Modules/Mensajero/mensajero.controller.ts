@@ -1,9 +1,12 @@
 import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post } from '@nestjs/common';
 import { MensajeroService } from './mensajero.service';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { CreateMensajeroDto } from './dto/create-mensajero.dto';
 import { UpdateMensajeroDto } from './dto/update-mensajero.dto';
 import { Roles } from '../Auth/decorators/roles.decorator';
 
+@ApiTags('Mensajeros')
+@ApiBearerAuth('access-token')
 @Controller('mensajeros')
 @Roles('admin')
 export class MensajeroController {
