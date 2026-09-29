@@ -1,9 +1,6 @@
 import {Body,Controller,Delete,Get,HttpCode,HttpStatus,Param,ParseUUIDPipe,Patch,Post,Query,Req,UnauthorizedException,} from '@nestjs/common';
 import type { Request } from 'express';
-import { ApiBearerAuth, ApiQuery,ApiTags } from '@nestjs/swagger';
-import { JwtAuthGuard } from '../Auth/guards/jwt-auth.guard';
-import { RolesGuard } from '../Auth/guards/roles.guard';
-import { UseGuards } from '@nestjs/common';
+import {ApiBearerAuth,ApiQuery,ApiTags,} from '@nestjs/swagger';
 import { rol_usuario, estado_usuario } from '@prisma/client';
 import { Roles } from '../Auth/decorators/roles.decorator';
 import { UsuarioService } from './usuario.service';
@@ -12,9 +9,6 @@ import { UpdateUsuarioDto } from './dto/update-usuario.dto';
 
 @ApiTags('Usuarios')
 @ApiBearerAuth('access-token')
-@UseGuards(JwtAuthGuard, RolesGuard)
-@Controller('usuarios')
-@Roles('admin')
 @Controller('usuarios')
 @Roles('admin')
 export class UsuarioController {
@@ -22,7 +16,7 @@ export class UsuarioController {
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
-    create(
+  create(
     @Req() req: Request,
     @Body() createUsuarioDto: CreateUsuarioDto,
   ) {
@@ -39,11 +33,22 @@ export class UsuarioController {
 
   @ApiQuery({ name: 'skip', required: false, type: String })
   @ApiQuery({ name: 'take', required: false, type: String })
-  @ApiQuery({ name: 'role', required: false, enum: rol_usuario })
-  @ApiQuery({ name: 'estado', required: false, enum: estado_usuario })
-  @ApiQuery({ name: 'search', required: false, type: String }) 
+  @ApiQuery({
+    name: 'role',
+    required: false,
+    enum: rol_usuario,
+  })
+  @ApiQuery({
+    name: 'estado',
+    required: false,
+    enum: estado_usuario,
+  })
+  @ApiQuery({
+    name: 'search',
+    required: false,
+    type: String,
+  })
   @Get()
-  
   findAll(
     @Query('skip') skip?: string,
     @Query('take') take?: string,
@@ -81,12 +86,14 @@ export class UsuarioController {
   }
 
   @Get(':id')
-    findOne(@Param('id', ParseUUIDPipe) id: string) {
+  findOne(
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
     return this.usuarioService.findOne(id);
   }
 
   @Patch(':id')
-    update(
+  update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() updateUsuarioDto: UpdateUsuarioDto,
   ) {
@@ -95,7 +102,9 @@ export class UsuarioController {
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-    remove(@Param('id', ParseUUIDPipe) id: string) {
+  remove(
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
     return this.usuarioService.remove(id);
   }
 }

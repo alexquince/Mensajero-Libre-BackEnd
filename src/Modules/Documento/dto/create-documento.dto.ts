@@ -2,8 +2,9 @@ import {IsBoolean,IsDateString,IsEnum,IsOptional,IsString,IsUUID,} from 'class-v
 import { tipo_doc } from '@prisma/client';
 
 export class CreateDocumentoDto {
+  @IsOptional()
   @IsUUID()
-  mensajero_id!: string;
+  mensajero_id?: string;
 
   @IsEnum(tipo_doc)
   tipo!: tipo_doc;
@@ -17,9 +18,5 @@ export class CreateDocumentoDto {
 
   @IsOptional()
   @IsDateString()
-  fecha_vencimiento?: Date;
-
-  @IsOptional()
-  @IsBoolean()
-  validado_por_admin?: boolean;
+  fecha_vencimiento?: string;
 }

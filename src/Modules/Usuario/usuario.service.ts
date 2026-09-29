@@ -149,53 +149,55 @@ export class UsuarioService {
     return resultado;
   }
 
-  // ACTUALIZAR
   
-  async update(id: string, dto: UpdateUsuarioDto) {
-    await this.findOne(id);
+// ACTUALIZAR
 
-    const data: Prisma.usersUpdateInput = {};
+async update(id: string, dto: UpdateUsuarioDto) {
+  await this.findOne(id);
 
-    if (dto.name !== undefined) data.name = dto.name;
+  const data: Prisma.usersUpdateInput = {};
 
-    if (dto.email !== undefined) data.email = dto.email;
-
-    if (dto.estado !== undefined) data.estado = dto.estado;
-
-    if (dto.password) {
-      data.password = await bcrypt.hash(dto.password, 10);
-    }
-
-    // El rol no debe modificarse
-    const usuario = await this.prisma.users.update({
-      where: { id },
-      data,
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        role: true,
-        estado: true,
-        last_login: true,
-        created_at: true,
-        updated_at: true,
-      },
-    });
-
-    return usuario;
+  if (dto.name !== undefined) {
+    data.name = dto.name;
   }
 
-  // ELIMINAR
-  
-  async remove(id: string) {
-    await this.findOne(id);
-
-    await this.prisma.users.delete({
-      where: { id },
-    });
-
-    return {
-      message: 'Usuario eliminado correctamente.',
-    };
+  if (dto.email !== undefined) {
+    data.email = dto.email;
   }
+
+  if (dto.estado !== undefined) {
+    data.estado = dto.estado;
+  }
+
+  const usuario = await this.prisma.users.update({
+    where: { id },
+    data,
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      role: true,
+      estado: true,
+      last_login: true,
+      created_at: true,
+      updated_at: true,
+    },
+  });
+
+  return usuario;
+}
+
+// ELIMINAR
+
+async remove(id: string) {
+  await this.findOne(id);
+
+  await this.prisma.users.delete({
+    where: { id },
+  });
+
+  return {
+    message: 'Usuario eliminado correctamente.',
+  };
+}
 }

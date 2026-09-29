@@ -1,9 +1,11 @@
 import { Body,Controller,Delete,Get,Patch,Param,Post } from '@nestjs/common';
+import { ApiBearerAuth } from '@nestjs/swagger';
 import { Roles } from '../Auth/decorators/roles.decorator';
 import { TarifaService } from './tarifa.service';
 import { CreateTarifaDto } from './dto/create-tarifa.dto';
 import { UpdateTarifaDto } from './dto/update-tarifa.dto';
 
+@ApiBearerAuth('access-token')
 @Controller('tarifas')
 @Roles('admin')
 export class TarifaController {
