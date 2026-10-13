@@ -1,6 +1,28 @@
-import { PartialType } from '@nestjs/mapped-types';
-import { CreateVehiculoDto } from './create-vehiculo.dto';
+import {IsEnum,IsOptional,IsString,} from 'class-validator';
+import { tipo_vehiculo } from '@prisma/client';
 
-export class UpdateVehiculoDto extends PartialType(
-  CreateVehiculoDto,
-) {}
+export class UpdateVehiculoDto {
+  @IsOptional()
+  @IsString()
+  marca?: string;
+
+  @IsOptional()
+  @IsString()
+  modelo?: string;
+
+  @IsOptional()
+  @IsString()
+  color?: string;
+
+  @IsOptional()
+  @IsString()
+  cilindraje?: string;
+
+  @IsOptional()
+  @IsString()
+  placa?: string;
+
+  @IsOptional()
+  @IsEnum(tipo_vehiculo)
+  tipo?: tipo_vehiculo;
+}

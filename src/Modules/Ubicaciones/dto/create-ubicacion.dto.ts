@@ -1,12 +1,28 @@
-import {IsUUID,IsNumberString,} from 'class-validator';
+import { Transform } from 'class-transformer';
+import {IsNumber,IsOptional,IsUUID,Max,Min,} from 'class-validator';
 
 export class CreateUbicacionDto {
+  @IsOptional()
   @IsUUID()
-  mensajero_id!: string;
+  mensajero_id?: string;
 
-  @IsNumberString()
-  latitud!: string;
+  @Transform(({ value }) =>
+    typeof value === 'string' && value.trim() !== ''
+      ? Number(value)
+      : value,
+  )
+  @IsNumber({ maxDecimalPlaces: 6, allowNaN: false, allowInfinity: false })
+  @Min(-90)
+  @Max(90)
+  latitud!: number;
 
-  @IsNumberString()
-  longitud!: string;
+  @Transform(({ value }) =>
+    typeof value === 'string' && value.trim() !== ''
+      ? Number(value)
+      : value,
+  )
+  @IsNumber({ maxDecimalPlaces: 6, allowNaN: false, allowInfinity: false })
+  @Min(-180)
+  @Max(180)
+  longitud!: number;
 }
